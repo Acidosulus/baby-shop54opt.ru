@@ -1,0 +1,12 @@
+start dlya-avto.cmd
+start dlya-detey.cmd
+start dlya-doma.cmd
+start dlya-krasoty-i-zdorovya.cmd
+start dlya-kukhni.cmd
+start dlya-puteshestviya.cmd
+start eko-tovary-komody.cmd
+start nakleyki.cmd
+start nanoshchyetki.cmd
+start novinki.cmd
+start rasprodazha.cmd
+start kosmetika_koreya
