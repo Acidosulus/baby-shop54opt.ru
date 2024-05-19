@@ -44,7 +44,9 @@ async def load_data_by_good_from_link(link:str, session):
 	result['pictures']=[]
 	for ilink in links:
 		append_if_not_exists(ilink.get('href').replace('//','https://'), result['pictures'])
-		
+
+	description = soup.find('div',{'class':'ui tab segment active'}).text
+	rich.print(description)
 	return result
 
 async def get_link_on_catalog_pages(catalog_url:str):
