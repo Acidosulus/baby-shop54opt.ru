@@ -13,7 +13,7 @@ def find_values(id, json_repr):
     json.loads(json_repr, object_hook=_decode_dict) # Return value ignored.
     return results
 
-def reduce(st:str, character:str=' ') -> str:
+def clear_spaces(st:str, character:str=' ') -> str:
  return  st.replace(''.ljust(16,character),character).replace(''.ljust(16,character),character).\
 			replace(''.ljust(8,character),character).replace(''.ljust(8,character),character).\
 			replace(''.ljust(4,character),character).replace(''.ljust(4,character),character).\

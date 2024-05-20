@@ -3,7 +3,7 @@ import asyncio
 from bs4 import BeautifulSoup
 import tempfile
 import rich
-from my_library import append_if_not_exists
+from my_library import append_if_not_exists, clear_spaces, Price, prepare_str, prepare_for_csv_non_list
 
 async def fetch_html(url, session):
 	async with session.get(url) as response:
@@ -28,6 +28,9 @@ async def load_data_by_good_from_link(link:str, session):
 	html = await fetch_html(link, session)
 	soup = BeautifulSoup(html, features='html5lib')
 	result = {}
+
+	result['link'] = link
+
 	result['title'] = soup.find('h1').text
 	
 	cost = soup.find('span',{'class':'sale-price'})
@@ -38,15 +41,13 @@ async def load_data_by_good_from_link(link:str, session):
 	result['cost'] = cost
 
 	images_container = soup.find('div', {'class':'avatar-wrap image'})
-	rich.print(images_container)
 	links = images_container.find_all('a')
-	rich.print(links)
 	result['pictures']=[]
 	for ilink in links:
 		append_if_not_exists(ilink.get('href').replace('//','https://'), result['pictures'])
 
-	description = soup.find('div',{'class':'ui tab segment active'}).text
-	rich.print(description)
+	result['descriprion'] = clear_spaces(soup.find('div',{'class':'ui tab segment active'}).text.replace('\n', ' ')).strip()
+
 	return result
 
 async def get_link_on_catalog_pages(catalog_url:str):
@@ -67,10 +68,72 @@ async def get_link_on_catalog_pages(catalog_url:str):
 				break
 	return all_pages
 
-async def main():
-	async with aiohttp.ClientSession() as session:
-		result = await load_data_by_good_from_link('https://baby-shop54opt.ru/products/32783487', session)
+
+async def load_data_by_good_from_link(link:str, session, semaphore):
+	async with semaphore:
+		html = await fetch_html(link, session)
+		soup = BeautifulSoup(html, features='html5lib')
+		result = {}
+
+		result['link'] = link
+
+		result['title'] = soup.find('h1').text
+		
+		cost = soup.find('span',{'class':'sale-price'})
+		if cost:
+			cost = cost.find('span',{'class':'product-price-data'}).get('data-cost')
+		else:
+			cost = soup.find('span',{'class':'product-price-data'}).get('data-cost')
+		result['cost'] = cost
+
+		images_container = soup.find('div', {'class':'avatar-wrap image'})
+		links = images_container.find_all('a')
+		result['pictures']=[]
+		for ilink in links:
+			append_if_not_exists(ilink.get('href').replace('//','https://'), result['pictures'])
+
+		result['description'] = clear_spaces(soup.find('div',{'class':'ui tab segment active'}).text.replace('\n', ' ')).strip()
+
+		result['sizes']
+		
 		rich.print(result)
+		return result
+
+def save_price(goods:list, path:str):
+	price = Price(path)
+	for  result in goods:
+		price.add_good('',
+								prepare_str(result['title']),
+								prepare_str(result['description']),
+								prepare_str( str(round(float(result['cost']), 2))),
+								'15',
+								prepare_str(result['link']),
+								prepare_for_csv_non_list(result['pictures']),
+								prepare_str(result['sizes']))
+		price.write_to_csv(price_path)
+
+
+
+async def main():
+	goods = []
+	good_links = [
+'https://baby-shop54opt.ru/products/58284052',
+]
+
+
+	semaphore = asyncio.Semaphore(20)
+	async with aiohttp.ClientSession() as session:
+		tasks = [load_data_by_good_from_link(link, session, semaphore) for link in good_links]
+		results = await asyncio.gather(*tasks)
+		save_price(results, 'G:\baby-shop54opt.ru\csvs\test.csv')
+		# rich.print(results)
+		# goods.append(result)
+	
+
+
+	# result = await load_data_by_good_from_link('https://baby-shop54opt.ru/products/32783487', session)
+	# goods.append(result)
+	# rich.print(result)
 
 	return
 	url = 'http://example.com'
