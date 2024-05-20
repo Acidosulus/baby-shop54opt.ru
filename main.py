@@ -50,23 +50,27 @@ async def load_data_by_good_from_link(link:str, session):
 
 	return result
 
-async def get_link_on_catalog_pages(catalog_url:str):
+async def get_all_links_on_goods(catalog_url:str):
 	all_pages = []
+	links = []
 	page_number =1
 	html, html_last = '',''
 	async with aiohttp.ClientSession() as session:
 		while True:
-			print(page_number)
+			rich.print(f'catalog page: {page_number}')
 			next_page_url = f"{catalog_url}?page={page_number}"
 			html_last = html
 			html = await fetch_html(next_page_url, session)
 			if str(BeautifulSoup(html, features='html5lib').find('article')) != str(BeautifulSoup(html_last, features='html5lib').find('article')):
 				all_pages.append(next_page_url)
-				get_list_of_goods_from_source(html)
+				result = get_list_of_goods_from_source(html)
+				links_from_page = get_list_of_goods_from_source(html)
+				rich.print(links_from_page)
+				links.extend(links_from_page)
 				page_number += 1
 			else:
 				break
-	return all_pages
+	return links
 
 
 async def load_data_by_good_from_link(link:str, session, semaphore):
@@ -94,7 +98,7 @@ async def load_data_by_good_from_link(link:str, session, semaphore):
 
 		result['description'] = clear_spaces(soup.find('div',{'class':'ui tab segment active'}).text.replace('\n', ' ')).strip()
 
-		result['sizes']
+		result['sizes']= ''
 		
 		rich.print(result)
 		return result
@@ -110,24 +114,20 @@ def save_price(goods:list, path:str):
 								prepare_str(result['link']),
 								prepare_for_csv_non_list(result['pictures']),
 								prepare_str(result['sizes']))
-		price.write_to_csv(price_path)
+		price.write_to_csv(path)
 
 
 
 async def main():
-	goods = []
-	good_links = [
-'https://baby-shop54opt.ru/products/58284052',
-]
+	# goods = []
+	# good_links = ['https://baby-shop54opt.ru/products/58284052',]
 
 
-	semaphore = asyncio.Semaphore(20)
-	async with aiohttp.ClientSession() as session:
-		tasks = [load_data_by_good_from_link(link, session, semaphore) for link in good_links]
-		results = await asyncio.gather(*tasks)
-		save_price(results, 'G:\baby-shop54opt.ru\csvs\test.csv')
-		# rich.print(results)
-		# goods.append(result)
+	# semaphore = asyncio.Semaphore(20)
+	# async with aiohttp.ClientSession() as session:
+	# 	tasks = [load_data_by_good_from_link(link, session, semaphore) for link in good_links]
+	# 	results = await asyncio.gather(*tasks)
+	# 	save_price(results, 'G:\baby-shop54opt.ru\csvs\test.csv')
 	
 
 
@@ -135,9 +135,13 @@ async def main():
 	# goods.append(result)
 	# rich.print(result)
 
-	return
-	url = 'http://example.com'
-	html = await get_link_on_catalog_pages('https://baby-shop54opt.ru/products/category/3000271')
-	print(html)
+	
+	liks_on_goods = await get_all_links_on_goods('https://baby-shop54opt.ru/products/category/3000271')
+
+	semaphore = asyncio.Semaphore(20)
+	async with aiohttp.ClientSession() as session:
+		tasks = [load_data_by_good_from_link(link, session, semaphore) for link in liks_on_goods]
+		results = await asyncio.gather(*tasks)
+		save_price(results, r'G:\baby-shop54opt.ru\csvs\test.csv')
 
 asyncio.run(main())
