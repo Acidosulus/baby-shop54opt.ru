@@ -2,7 +2,6 @@ from click import echo, style
 import rich
 import pika
 import configparser
-import threading
 import requests
 from requests.auth import HTTPBasicAuth
 
@@ -28,8 +27,6 @@ class RabbitMQ_Driver:
 																	  			credentials = pika.PlainCredentials(	username  = self.user_name,
 																														 password = self.user_password)))
 		self.channel = self.connection.channel()
-		# rich.print(self.connection)
-		# rich.print(self.channel)
 
 
 	def create_queue(self, queue_name:str):
@@ -68,7 +65,6 @@ class RabbitMQ_Driver:
 def my_test_callback(ch, method, properties, body:bytes):
 	rich.print('consume:')
 	rich.print(f"From:my_test_callback Received: '{body.decode(encoding='utf8',  errors='ignore')}', ch:{ch}, method:{method}, properties:{properties}")
-	# ch.basic_ack(delivery_tag=method.delivery_tag)
 
 
 if __name__ == '__main__':

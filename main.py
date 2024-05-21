@@ -12,15 +12,10 @@ from driver import RabbitMQ_Driver
 
 
 def download_page(url):
-    # Отправляем GET запрос по указанному URL
     response = requests.get(url)
-   
-    # Проверяем статус ответа
     if response.status_code == 200:
-        # Если статус ответа успешный (200), возвращаем код страницы
         return response.text
     else:
-        # Если статус ответа не успешный, выдаем ошибку
         print("Ошибка при загрузке страницы. Код ответа:", response.status_code)
         return None
 
@@ -112,8 +107,11 @@ def load_data_by_good_from_link(link:str):
 	result['pictures']=[]
 	for ilink in links:
 		append_if_not_exists(ilink.get('href').replace('//','https://'), result['pictures'])
-
-	result['description'] = clear_spaces(soup.find('div',{'class':'ui tab segment active'}).text.replace('\n', ' ')).strip()
+	
+	try:
+		result['description'] = clear_spaces(soup.find('div',{'class':'ui tab segment active'}).text.replace('\n', ' ')).strip()
+	except:
+		result['description'] = ''
 
 	result['sizes']= ''
 	try:
@@ -122,7 +120,7 @@ def load_data_by_good_from_link(link:str):
 			result['sizes'] = result['sizes'] + ('; ' if len(result['sizes'])>0 else '') + size_block.text.strip()
 	except:
 		pass
-		
+
 	rich.print(result)
 	return result
 
@@ -142,9 +140,6 @@ def save_price(result:list, path:str):
 
 
 def consume_link_on_good(ch, method, properties, body:bytes):
-	# rich.print(ch)
-	# rich.print(method.routing_key)
-	# rich.print(properties)
 	data = json.loads(body.decode(encoding='utf8',  errors='ignore'))
 	rich.print(f"""Recieved link: {data['link']} from catalog: {data['catalog_url']} for price: {data['price']}""")
 	method_frame, header_frame, body = ch.basic_get(queue=method.routing_key)
@@ -153,9 +148,6 @@ def consume_link_on_good(ch, method, properties, body:bytes):
 	good_data['catalog_url'] = data['catalog_url']
 	rqd.create_queue(method.routing_key+'_good')
 	rqd.put_message(method.routing_key+'_good', json.dumps(good_data, ensure_ascii=False))
-	# if method_frame is None:
-	# 	ch.stop_consuming()
-	# 	rich.print('[red]Stop consuming[/red]')
 	
 
 def consume_save_price(ch, method, properties, body:bytes):
