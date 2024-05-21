@@ -9,6 +9,8 @@ from my_library import append_if_not_exists, clear_spaces, Price, prepare_str, p
 from driver import RabbitMQ_Driver
 
 
+
+
 def download_page(url):
     # Отправляем GET запрос по указанному URL
     response = requests.get(url)
@@ -114,27 +116,29 @@ def load_data_by_good_from_link(link:str):
 	result['description'] = clear_spaces(soup.find('div',{'class':'ui tab segment active'}).text.replace('\n', ' ')).strip()
 
 	result['sizes']= ''
-	
+	try:
+		selector = soup.find('div', {'class':'variant-chooser-item variant-chooser__item -col-12 inline-block'})
+		for size_block in selector.find_all('div', {'class':'variant-chooser-value'}):
+			result['sizes'] = result['sizes'] + ('; ' if len(result['sizes'])>0 else '') + size_block.text.strip()
+	except:
+		pass
+		
 	rich.print(result)
 	return result
 
-def save_price(goods:list, path:str):
+def save_price(result:list, path:str):
 	price = Price(path)
-	for  result in goods:
-		price.add_good('',
-								prepare_str(result['title']),
-								prepare_str(result['description']),
-								prepare_str( str(round(float(result['cost']), 2))),
-								'15',
-								prepare_str(result['link']),
-								prepare_for_csv_non_list(result['pictures']),
-								prepare_str(result['sizes']))
-		price.write_to_csv(path)
+	price.add_good('',
+							prepare_str(result['title']),
+							prepare_str(result['description']),
+							prepare_str( str(round(float(result['cost']), 2))),
+							'15',
+							prepare_str(result['link']),
+							prepare_for_csv_non_list(result['pictures']),
+							prepare_str(result['sizes']))
+	price.write_to_csv(path)
 
 
-queue_name = "baby-shop54opt.ru" + datetime.datetime.now().strftime("%Y-%m-%d")
-
-rqd = RabbitMQ_Driver()
 
 
 def consume_link_on_good(ch, method, properties, body:bytes):
@@ -145,6 +149,8 @@ def consume_link_on_good(ch, method, properties, body:bytes):
 	rich.print(f"""Recieved link: {data['link']} from catalog: {data['catalog_url']} for price: {data['price']}""")
 	method_frame, header_frame, body = ch.basic_get(queue=method.routing_key)
 	good_data = load_data_by_good_from_link(data['link'])
+	good_data['price'] = data['price']
+	good_data['catalog_url'] = data['catalog_url']
 	rqd.create_queue(method.routing_key+'_good')
 	rqd.put_message(method.routing_key+'_good', json.dumps(good_data, ensure_ascii=False))
 	# if method_frame is None:
@@ -152,31 +158,40 @@ def consume_link_on_good(ch, method, properties, body:bytes):
 	# 	rich.print('[red]Stop consuming[/red]')
 	
 
+def consume_save_price(ch, method, properties, body:bytes):
+	data = json.loads(body.decode(encoding='utf8',  errors='ignore'))
+	rich.print(data)
+	save_price(data, data['price'])
+
 
 def main():
 	if sys.argv[1]=='get_links_from_catalog':
-		# liks_on_goods = await get_all_links_on_goods('https://baby-shop54opt.ru/products/category/3000271')
 		get_all_links_on_goods(	
-								catalog_url='https://baby-shop54opt.ru/products/category/3000271',
+								catalog_url=sys.argv[2],
 					   			queue=queue_name,
-								price_path=r'G:\baby-shop54opt.ru\csvs\test.csv',
+								price_path=sys.argv[3],
 								rqd=rqd
 								)
+
 
 	if sys.argv[1]=='get_goods_data':
 		queues = rqd.get_broker_queues()
 		queues = list(filter(lambda x: x.startswith('baby-shop54opt.ru') and x.endswith('_links_on_goods'), queues))
-
 		for queue in queues:
 			rqd.add_queue_non_blocking(queue, consume_link_on_good)
 
-		# semaphore = asyncio.Semaphore(20)
-		# async with aiohttp.ClientSession() as session:
-		# 	tasks = [load_data_by_good_from_link(link, session, semaphore) for link in links_on_goods]
-		# 	results = await asyncio.gather(*tasks)
+
 
 	if sys.argv[1]=='unload_prices':
-		save_price(results, r'G:\baby-shop54opt.ru\csvs\test.csv')
+		queues = rqd.get_broker_queues()
+		queues = list(filter(lambda x: x.startswith('baby-shop54opt.ru') and x.endswith('_links_on_goods_good'), queues))
+		for queue in queues:
+			rqd.add_queue_non_blocking(queue, consume_save_price)
+
+	if sys.argv[1]=='test':
+		load_data_by_good_from_link("https://baby-shop54opt.ru/products/59139774")
 
 if __name__ == '__main__':
+	queue_name = "baby-shop54opt.ru" + datetime.datetime.now().strftime("%Y-%m-%d")
+	rqd = RabbitMQ_Driver()
 	main()

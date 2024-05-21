@@ -38,7 +38,7 @@ class RabbitMQ_Driver:
 
 
 	def add_queue_non_blocking(self, queue_name: str, callback: callable):
-		self.channel.basic_consume(queue=queue_name, on_message_callback=callback, auto_ack=False)
+		self.channel.basic_consume(queue=queue_name, on_message_callback=callback, auto_ack=True)
 		self.channel.start_consuming()
 
 	def put_message(self, queue_name, message):
