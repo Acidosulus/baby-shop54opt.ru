@@ -16,7 +16,7 @@ def download_page(url):
     if response.status_code == 200:
         return response.text
     else:
-        print("Ошибка при загрузке страницы. Код ответа:", response.status_code)
+        print("Page Download error::", response.status_code)
         return None
 
 
