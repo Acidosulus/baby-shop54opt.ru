@@ -27,6 +27,7 @@ class RabbitMQ_Driver:
 																	  			credentials = pika.PlainCredentials(	username  = self.user_name,
 																														 password = self.user_password)))
 		self.channel = self.connection.channel()
+		self.channel.basic_qos(prefetch_count=1)
 
 
 	def create_queue(self, queue_name:str):
