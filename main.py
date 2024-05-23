@@ -5,7 +5,7 @@ import datetime
 import rich
 import sys
 import json
-from my_library import append_if_not_exists, clear_spaces, Price, prepare_str, prepare_for_csv_non_list
+from my_library import append_if_not_exists, clear_spaces, Price, prepare_str, prepare_for_csv_non_list, convert_file_to_ansi, reverse_csv_price
 from driver import RabbitMQ_Driver
 
 
@@ -34,34 +34,36 @@ def get_list_of_goods_from_source(source):
 	return result
 
 
-def load_data_by_good_from_link(link:str, session):
-	html = download_page(link)
-	soup = BeautifulSoup(html, features='html5lib')
-	result = {}
+# def load_data_by_good_from_link(link:str, session):
+# 	html = download_page(link)
+# 	soup = BeautifulSoup(html, features='html5lib')
+# 	result = {}
 
-	result['link'] = link
+# 	result['link'] = link
 
-	result['title'] = soup.find('h1').text
+# 	result['title'] = soup.find('h1').text
 	
-	cost = soup.find('span',{'class':'sale-price'})
-	if cost:
-		cost = cost.find('span',{'class':'product-price-data'}).get('data-cost')
-	else:
-		cost = soup.find('span',{'class':'product-price-data'}).get('data-cost')
-	result['cost'] = cost
+# 	cost = soup.find('span',{'class':'sale-price'})
+# 	if cost:
+# 		cost = cost.find('span',{'class':'product-price-data'}).get('data-cost')
+# 	else:
+# 		cost = soup.find('span',{'class':'product-price-data'}).get('data-cost')
+# 	result['cost'] = cost
 
-	images_container = soup.find('div', {'class':'avatar-wrap image'})
-	links = images_container.find_all('a')
-	result['pictures']=[]
-	for ilink in links:
-		append_if_not_exists(ilink.get('href').replace('//','https://'), result['pictures'])
+# 	images_container = soup.find('div', {'class':'avatar-wrap image'})
+# 	links = images_container.find_all('a')
+# 	result['pictures']=[]
+# 	for ilink in links:
+# 		append_if_not_exists(ilink.get('href').replace('//','https://'), result['pictures'])
 
-	result['descriprion'] = clear_spaces(soup.find('div',{'class':'ui tab segment active'}).text.replace('\n', ' ')).strip()
+# 	result['descriprion'] = clear_spaces(soup.find('div',{'class':'user-inner'}).text.replace('\n', ' ')).strip()
 
-	return result
+# 	return result
 
 def get_all_links_on_goods(catalog_url:str, queue:str, price_path:str, rqd:RabbitMQ_Driver):
 	links_queue_name = queue+'_links_on_goods'
+	rqd.create_queue(links_queue_name)
+	rqd.create_queue(links_queue_name+'_good')
 	all_pages = []
 	links = []
 	page_number =1
@@ -77,7 +79,6 @@ def get_all_links_on_goods(catalog_url:str, queue:str, price_path:str, rqd:Rabbi
 			links_from_page = get_list_of_goods_from_source(html)
 			rich.print(links_from_page)
 			links.extend(links_from_page)
-			rqd.create_queue(queue+'_links_on_goods')
 			for lnk in links_from_page:
 				rqd.put_message(links_queue_name, json.dumps({'price':price_path, 'catalog_url':catalog_url, 'link':lnk}))
 			page_number += 1
@@ -109,7 +110,7 @@ def load_data_by_good_from_link(link:str):
 		append_if_not_exists(ilink.get('href').replace('//','https://'), result['pictures'])
 	
 	try:
-		result['description'] = clear_spaces(soup.find('div',{'class':'ui tab segment active'}).text.replace('\n', ' ')).strip()
+		result['description'] = clear_spaces(soup.find('div',{'class':'user-inner'}).text.replace('\n', ' ')).strip()
 	except:
 		result['description'] = ''
 
@@ -133,7 +134,7 @@ def save_price(result:list, path:str):
 							'15',
 							prepare_str(result['link']),
 							prepare_for_csv_non_list(result['pictures']),
-							prepare_str(result['sizes']))
+							'"'+clear_spaces(result['sizes']).strip()).replace(" ","; ")+'"'
 	price.write_to_csv(path)
 
 
@@ -146,7 +147,6 @@ def consume_link_on_good(ch, method, properties, body:bytes):
 	good_data = load_data_by_good_from_link(data['link'])
 	good_data['price'] = data['price']
 	good_data['catalog_url'] = data['catalog_url']
-	rqd.create_queue(method.routing_key+'_good')
 	rqd.put_message(method.routing_key+'_good', json.dumps(good_data, ensure_ascii=False))
 	
 
@@ -181,7 +181,13 @@ def main():
 			rqd.add_queue_non_blocking(queue, consume_save_price)
 
 	if sys.argv[1]=='test':
-		load_data_by_good_from_link("https://baby-shop54opt.ru/products/59139774")
+		load_data_by_good_from_link("https://baby-shop54opt.ru/products/36324491")
+
+	if sys.argv[1]=='ansirevert':
+		reverse_csv_price(convert_file_to_ansi(sys.argv[2]))
+
+
+
 
 if __name__ == '__main__':
 	queue_name = "baby-shop54opt.ru" + datetime.datetime.now().strftime("%Y-%m-%d")

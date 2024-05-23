@@ -32,18 +32,23 @@ def reverse_csv_price(lc_source_file_name:str):
 	source_file = open(lc_source_file_name, mode='r', encoding='utf-8', errors = 'ignore')
 	lines = source_file.read().splitlines()
 	source_file.close()
-	inverted_file = open(lc_source_file_name+'_reversed.csv', mode='w', encoding='utf-8', errors = 'ignore')
+	lc_target = lc_source_file_name+'_reversed.csv'
+	inverted_file = open(lc_target, mode='w', encoding='utf-8', errors = 'ignore')
 	inverted_file.writelines(lines[0] + '\n')
 	for i in reversed(lines[1:len(lines)]):
 		inverted_file.write(i + '\n')
 	inverted_file.close()
+	return lc_target
+
 
 def convert_file_to_ansi(lc_source_file_name:str):
+	lc_target = lc_source_file_name+'_ansi.csv'
 	source_file = open(lc_source_file_name, mode='r', encoding='utf-8', errors = 'ignore')
-	target_file = open(lc_source_file_name+'_ansi.csv', mode='w', encoding='1251', errors = 'ignore')
+	target_file = open(lc_target, mode='w', encoding='1251', errors = 'ignore')
 	target_file.write(source_file.read())
 	source_file.close()
 	target_file.close()
+	return lc_target
 
 def delete_from_string_between_substrings(lc_source: str, lc_from: str, lc_to: str):	# удаляет подстроку из строки ограниченную начальной и конечной подстрокой
 	l = lc_source.find(lc_from)
@@ -128,7 +133,7 @@ class Price:
 		else:
 			self.good = []
 			self.goods = []
-			self.goods.append(['ID товара', 'наименование', 'описание', 'цена', 'орг %', 'ccылка на товар на сайте поставщика', 'ссылки на Фото', 'Характеристика'])
+			self.goods.append(['ID товара', 'наименование', 'описание', 'цена', 'орг %', 'ccылка на товар на сайте поставщика', 'ссылки на Фото', 'Размер'])
 
 
 
