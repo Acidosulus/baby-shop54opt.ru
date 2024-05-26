@@ -121,12 +121,18 @@ def load_data_by_good_from_link(link:str):
 			result['sizes'] = result['sizes'] + ('; ' if len(result['sizes'])>0 else '') + size_block.text.strip()
 	except:
 		pass
+	if result['sizes'] is None:
+		result['sizes'] = ''
 
 	rich.print(result)
 	return result
 
 def save_price(result:list, path:str):
 	price = Price(path)
+	sizes = result['sizes']
+	sizes = clear_spaces(sizes)
+	sizes = sizes.strip()
+	sizes = sizes.replace(" ","; ")
 	price.add_good('',
 							prepare_str(result['title']),
 							prepare_str(result['description']),
@@ -134,7 +140,7 @@ def save_price(result:list, path:str):
 							'15',
 							prepare_str(result['link']),
 							prepare_for_csv_non_list(result['pictures']),
-							'"'+clear_spaces(result['sizes']).strip()).replace(" ","; ")+'"'
+							'"'+result['sizes']+'"')
 	price.write_to_csv(path)
 
 
@@ -165,18 +171,15 @@ def main():
 								rqd=rqd
 								)
 
-
 	if sys.argv[1]=='get_goods_data':
 		queues = rqd.get_broker_queues()
-		queues = list(filter(lambda x: x.startswith('baby-shop54opt.ru') and x.endswith('_links_on_goods'), queues))
+		queues = list(filter(lambda x: x.startswith('baby-shop54opt.ru') and x.endswith('_links_on_goods') and datetime.datetime.now().strftime("%Y-%m-%d") in x, queues))
 		for queue in queues:
 			rqd.add_queue_non_blocking(queue, consume_link_on_good)
 
-
-
 	if sys.argv[1]=='unload_prices':
 		queues = rqd.get_broker_queues()
-		queues = list(filter(lambda x: x.startswith('baby-shop54opt.ru') and x.endswith('_links_on_goods_good'), queues))
+		queues = list(filter(lambda x: x.startswith('baby-shop54opt.ru') and x.endswith('_links_on_goods_good') and datetime.datetime.now().strftime("%Y-%m-%d") in x, queues))
 		for queue in queues:
 			rqd.add_queue_non_blocking(queue, consume_save_price)
 
@@ -184,7 +187,7 @@ def main():
 		load_data_by_good_from_link("https://baby-shop54opt.ru/products/36324491")
 
 	if sys.argv[1]=='ansirevert':
-		reverse_csv_price(convert_file_to_ansi(sys.argv[2]))
+		convert_file_to_ansi(reverse_csv_price(sys.argv[2]))
 
 
 
