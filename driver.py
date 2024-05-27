@@ -34,10 +34,17 @@ class RabbitMQ_Driver:
 		self.channel.queue_declare(queue=queue_name, durable=True)
 		rich.print(f'Create queue: {queue_name}')
 
+	def delete_queue(self, queue_name: str):
+		self.channel.queue_delete(queue=queue_name)
+		rich.print(f'Delete queue: {queue_name}')
 
 	def add_queue_non_blocking(self, queue_name: str, callback: callable):
 		self.channel.basic_consume(queue=queue_name, on_message_callback=callback, auto_ack=True)
 		self.channel.start_consuming()
+
+	def get_one_message(self, queue_name:str):
+		method_frame, header_frame, body = self.channel.basic_get(queue=queue_name, auto_ack=True)
+		return body.decode()
 
 	def put_message(self, queue_name, message):
 		rich.print(f'Put message: {message} into queue: {queue_name}')
